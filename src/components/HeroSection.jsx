@@ -35,34 +35,19 @@ function HeroSection() {
         
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
           <Link
-            to="/trends"
+            to="/style-ai"
             className="group relative px-8 py-4 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-full hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
           >
-            <span className="relative z-10">Explore Trends</span>
+            <span className="relative z-10">Try Très.AI</span>
             <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
-          </Link>
-          
-          <Link
-            to="/style-ai"
-            className="px-8 py-4 bg-white/10 backdrop-blur-md text-white font-semibold rounded-full border-2 border-white/30 hover:bg-white/20 transition-all duration-300"
-          >
-            Try Très.AI
           </Link>
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto">
+        <div className="grid grid-cols-1 gap-8 mt-16 max-w-xs mx-auto">
           <div className="text-center">
             <div className="text-3xl font-bold text-white mb-2">AI</div>
             <div className="text-gray-300 text-sm">Powered Analysis</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-white mb-2">Smart</div>
-            <div className="text-gray-300 text-sm">Style Recognition</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-white mb-2">Real-time</div>
-            <div className="text-gray-300 text-sm">Trend Updates</div>
           </div>
         </div>
       </div>

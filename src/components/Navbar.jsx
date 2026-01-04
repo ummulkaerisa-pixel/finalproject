@@ -12,6 +12,8 @@ function Navbar() {
     { path: '/', label: 'Home' },
     { path: '/collections', label: 'Très.Magazine' },
     { path: '/style-ai', label: 'Très.AI' },
+    { path: '/fashion-calendar', label: 'Fashion Calendar' },
+    { path: '/style-mood-board', label: 'Mood Board' },
     { path: '/about', label: 'About' },
   ]
 

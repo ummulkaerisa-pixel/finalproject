@@ -1,141 +1,11 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import HeroSection from '../components/HeroSection'
-import { shopstyleApi } from '../services/shopstyleApi'
 
 function Home() {
-  const [trendingProducts, setTrendingProducts] = useState([])
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [loading, setLoading] = useState(false)
-
-  const categories = [
-    { id: 'all', label: 'All Trends', icon: '✨' },
-    { id: 'luxury', label: 'Luxury', icon: '💎' },
-    { id: 'streetwear', label: 'Streetwear', icon: '🔥' },
-    { id: 'casual', label: 'Casual', icon: '👕' },
-    { id: 'seasonal', label: 'Seasonal', icon: '🌸' }
-  ]
-
-  useEffect(() => {
-    fetchTrendingProducts()
-  }, [selectedCategory])
-
-  const fetchTrendingProducts = async () => {
-    setLoading(true)
-    try {
-      let result
-      if (selectedCategory === 'all') {
-        result = await shopstyleApi.getTrendingProducts(8)
-      } else {
-        result = await shopstyleApi.getProductsByCategory(selectedCategory)
-      }
-      setTrendingProducts(result.products.slice(0, 8))
-    } catch (error) {
-      console.error('Error fetching trending products:', error)
-      setTrendingProducts([])
-    } finally {
-      setLoading(false)
-    }
-  }
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
       <HeroSection />
-
-      {/* Trending Products Section */}
-      <section className="py-20 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Trending <span className="bg-gradient-to-r from-rose-500 to-pink-600 bg-clip-text text-transparent">Fashion</span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              Discover the latest fashion trends curated from top brands and designers
-            </p>
-            
-            {/* Category Filter */}
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              {categories.map(category => (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`px-6 py-3 rounded-full font-medium transition-all duration-300 ${
-                    selectedCategory === category.id
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  <span className="mr-2">{category.icon}</span>
-                  {category.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Products Grid */}
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-500"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {trendingProducts.map(product => (
-                <div key={product.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden">
-                  <div className="aspect-w-3 aspect-h-4 relative overflow-hidden">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-64 object-cover"
-                      onError={(e) => {
-                        e.target.src = `https://images.unsplash.com/photo-1445205170230-053b83016050?w=300&h=400&fit=crop&random=${product.id}`
-                      }}
-                    />
-                    {product.salePrice && (
-                      <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-semibold">
-                        Sale
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-gray-900 text-lg leading-tight">{product.name}</h3>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-3">{product.brand}</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        {product.salePrice ? (
-                          <>
-                            <span className="text-lg font-bold text-red-600">${product.salePrice}</span>
-                            <span className="text-sm text-gray-500 line-through">${product.price}</span>
-                          </>
-                        ) : (
-                          <span className="text-lg font-bold text-gray-900">${product.price}</span>
-                        )}
-                      </div>
-                      <a
-                        href={product.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-gradient-to-r from-rose-500 to-pink-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:shadow-lg transition-all duration-300 transform hover:scale-105"
-                      >
-                        Shop Now
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {trendingProducts.length === 0 && !loading && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">🛍️</div>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No products found</h3>
-              <p className="text-gray-500">Try selecting a different category</p>
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* Features Section */}
       <section className="py-20 px-6 bg-gray-50">
@@ -149,7 +19,7 @@ function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto">
             {/* Très.Magazine Feature */}
             <div className="bg-white rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
               <div className="text-center">
@@ -191,6 +61,30 @@ function Home() {
                   className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
                 >
                   Try AI Analysis
+                  <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+
+            {/* Fashion Calendar Feature */}
+            <div className="bg-white rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Fashion Calendar</h3>
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  Never miss important fashion events, runway shows, and industry milestones. Stay connected to Fashion Week schedules and exclusive events worldwide.
+                </p>
+                <Link
+                  to="/fashion-calendar"
+                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                >
+                  View Calendar
                   <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>

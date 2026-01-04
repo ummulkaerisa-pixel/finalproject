@@ -41,7 +41,7 @@ function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 pt-8 text-center">
           <p className="text-gray-400 text-sm">
-            &copy; 2024 Très.Now. All rights reserved.
+            &copy; 2026 Très.Now. All rights reserved.
           </p>
         </div>
       </div>

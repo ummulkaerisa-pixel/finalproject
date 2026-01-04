@@ -1,9 +1,53 @@
 import { useState, useEffect } from 'react'
 import { rssApi } from '../services/rssApi'
 
+// Favourites management
+const getFavourites = () => {
+  const saved = localStorage.getItem('tres-favourites')
+  return saved ? JSON.parse(saved) : []
+}
+
+const saveFavourites = (favourites) => {
+  localStorage.setItem('tres-favourites', JSON.stringify(favourites))
+}
+
+const toggleFavourite = (article) => {
+  const favourites = getFavourites()
+  const isAlreadyFavourite = favourites.some(fav => fav.id === article.id)
+  
+  if (isAlreadyFavourite) {
+    const updated = favourites.filter(fav => fav.id !== article.id)
+    saveFavourites(updated)
+    return false
+  } else {
+    const updated = [...favourites, article]
+    saveFavourites(updated)
+    return true
+  }
+}
+
+const isFavourite = (articleId) => {
+  const favourites = getFavourites()
+  return favourites.some(fav => fav.id === articleId)
+}
+
 // Article Modal Component
-const ArticleModal = ({ article, isOpen, onClose }) => {
+const ArticleModal = ({ article, isOpen, onClose, onToggleFavourite }) => {
   if (!isOpen || !article) return null
+
+  const [isFav, setIsFav] = useState(false)
+
+  useEffect(() => {
+    if (article) {
+      setIsFav(isFavourite(article.id))
+    }
+  }, [article])
+
+  const handleToggleFavourite = () => {
+    const newFavStatus = toggleFavourite(article)
+    setIsFav(newFavStatus)
+    if (onToggleFavourite) onToggleFavourite()
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -16,14 +60,32 @@ const ArticleModal = ({ article, isOpen, onClose }) => {
             </span>
             <span className="text-gray-500 text-sm">{article.source}</span>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center space-x-3">
+            {/* Favourite Button */}
+            <button
+              onClick={handleToggleFavourite}
+              className={`p-2 rounded-full transition-all duration-300 ${
+                isFav 
+                  ? 'text-red-500 bg-red-50 hover:bg-red-100' 
+                  : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+              }`}
+              title={isFav ? 'Remove from favourites' : 'Add to favourites'}
+            >
+              <svg className="w-6 h-6" fill={isFav ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            </button>
+            
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Modal Content */}
@@ -41,18 +103,18 @@ const ArticleModal = ({ article, isOpen, onClose }) => {
 
           <div className="p-6">
             {/* Article Title */}
-            <h1 className="text-3xl font-bold text-gray-900 mb-4 leading-tight">
+            <h1 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">
               {article.title}
             </h1>
 
             {/* Article Meta */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-gray-200">
               <div className="flex items-center space-x-4">
-                <span className="text-gray-700 font-medium">By {article.author}</span>
+                <span className="text-lg font-medium text-gray-700">By {article.author}</span>
                 <span className="text-gray-500">•</span>
-                <span className="text-gray-500">{article.readTime}</span>
+                <span className="text-lg text-gray-500">{article.readTime}</span>
               </div>
-              <span className="text-gray-500 text-sm">
+              <span className="text-base text-gray-500">
                 {new Date(article.publishedDate).toLocaleDateString('en-US', { 
                   year: 'numeric', 
                   month: 'long', 
@@ -62,15 +124,15 @@ const ArticleModal = ({ article, isOpen, onClose }) => {
             </div>
 
             {/* Article Content */}
-            <div className="prose prose-lg max-w-none">
-              <p className="text-xl text-gray-700 mb-6 leading-relaxed font-medium">
+            <div className="prose prose-xl max-w-none">
+              <p className="text-2xl text-gray-700 mb-8 leading-relaxed font-medium">
                 {article.description}
               </p>
               
-              <div className="text-gray-800 leading-relaxed space-y-4">
+              <div className="text-lg text-gray-800 leading-relaxed space-y-6">
                 {article.content.split('\n').map((paragraph, index) => (
                   paragraph.trim() && (
-                    <p key={index} className="mb-4">
+                    <p key={index} className="mb-6 text-lg leading-8">
                       {paragraph}
                     </p>
                   )
@@ -79,24 +141,24 @@ const ArticleModal = ({ article, isOpen, onClose }) => {
             </div>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-2 mt-8 pt-6 border-t border-gray-200">
+            <div className="flex flex-wrap gap-3 mt-10 pt-8 border-t border-gray-200">
               {article.tags.map(tag => (
-                <span key={tag} className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm">
+                <span key={tag} className="bg-gray-100 text-gray-600 px-4 py-2 rounded-full text-base">
                   #{tag}
                 </span>
               ))}
             </div>
 
             {/* Read Original Link */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="mt-8 pt-6 border-t border-gray-200">
               <a
                 href={article.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center bg-rose-500 text-white px-6 py-3 rounded-full font-medium hover:bg-rose-600 transition-colors"
+                className="inline-flex items-center bg-rose-500 text-white px-8 py-4 rounded-full text-lg font-medium hover:bg-rose-600 transition-colors"
               >
                 Read Original Article
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
               </a>
@@ -117,26 +179,29 @@ function Collections() {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [favouriteArticles, setFavouriteArticles] = useState([])
 
   const categories = ['All', 'Fashion Week', 'Luxury', 'Streetwear', 'Sustainability', 'Technology', 'Style', 'Global Fashion', 'Business', 'Vintage']
 
-  const categoryColors = {
-    'Fashion Week': 'from-rose-400 to-pink-600',
-    'Luxury': 'from-purple-400 to-indigo-600',
-    'Streetwear': 'from-gray-400 to-gray-600',
-    'Sustainability': 'from-emerald-400 to-teal-600',
-    'Technology': 'from-blue-400 to-cyan-600',
-    'Style': 'from-amber-400 to-orange-600',
-    'Global Fashion': 'from-red-400 to-rose-600',
-    'Business': 'from-indigo-400 to-purple-600',
-    'Vintage': 'from-yellow-400 to-amber-600'
-  }
+  useEffect(() => {
+    setFavouriteArticles(getFavourites())
+  }, [])
 
   useEffect(() => {
     if (!searchQuery) {
       fetchArticles()
     }
   }, [selectedCategory])
+
+  const handleFavouriteUpdate = () => {
+    setFavouriteArticles(getFavourites())
+  }
+
+  const toggleArticleFavourite = (article, event) => {
+    event.stopPropagation() // Prevent opening modal when clicking heart
+    toggleFavourite(article)
+    setFavouriteArticles(getFavourites())
+  }
 
   const fetchArticles = async () => {
     try {
@@ -327,6 +392,23 @@ function Collections() {
                         {article.category}
                       </span>
                     </div>
+
+                    {/* Favourite Heart Button */}
+                    <div className="absolute top-4 right-4">
+                      <button
+                        onClick={(e) => toggleArticleFavourite(article, e)}
+                        className={`p-2 rounded-full backdrop-blur-md transition-all duration-300 ${
+                          isFavourite(article.id)
+                            ? 'text-red-500 bg-white/90 hover:bg-white' 
+                            : 'text-white hover:text-red-500 bg-black/20 hover:bg-white/90'
+                        }`}
+                        title={isFavourite(article.id) ? 'Remove from favourites' : 'Add to favourites'}
+                      >
+                        <svg className="w-5 h-5" fill={isFavourite(article.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Article Content */}
@@ -387,19 +469,6 @@ function Collections() {
             </button>
           </div>
         )}
-
-        {/* Featured Section */}
-        <div className="mt-20 bg-gradient-to-r from-gray-900 to-gray-800 rounded-3xl p-12 text-white">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-4xl font-bold mb-4">Subscribe to Très.Magazine</h2>
-            <p className="text-xl text-gray-300 mb-8">
-              Get exclusive access to breaking fashion news, trend reports, and industry insights
-            </p>
-            <button className="bg-gradient-to-r from-rose-500 to-pink-600 text-white px-8 py-4 rounded-full font-semibold hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-              Subscribe Now
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Article Modal */}
@@ -407,6 +476,7 @@ function Collections() {
         article={selectedArticle}
         isOpen={isModalOpen}
         onClose={closeArticleModal}
+        onToggleFavourite={handleFavouriteUpdate}
       />
     </div>
   )

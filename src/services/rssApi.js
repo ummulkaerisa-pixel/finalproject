@@ -2,9 +2,9 @@
 // Using NewsAPI with provided API key for daily updated fashion content
 
 // NewsAPI configuration
+
 const NEWS_API_KEY = '1b132003e30d45b0bfcac300ab11af9f'
 const NEWS_API_BASE_URL = 'https://newsapi.org/v2'
-
 // Fashion-focused domains and sources
 const FASHION_DOMAINS = [
   'vogue.com',
@@ -221,9 +221,9 @@ const fetchFashionHeadlines = async (pageSize = 15) => {
 const FALLBACK_ARTICLES = [
   {
     id: 1,
-    title: 'Spring 2025 Fashion Week: The Trends That Will Define Next Year',
+    title: 'Spring 2026 Fashion Week: The Trends That Will Define Next Year',
     description: 'From sustainable luxury to bold streetwear, discover the key trends emerging from the latest fashion week shows across Paris, Milan, and New York.',
-    content: 'Fashion Week Spring 2025 has concluded with remarkable shows that set the tone for next year\'s trends. Sustainability took center stage with brands like Stella McCartney and Gabriela Hearst showcasing innovative eco-friendly materials.',
+    content: 'Fashion Week Spring 2026 has concluded with remarkable shows that set the tone for next year\'s trends. Sustainability took center stage with brands like Stella McCartney and Gabriela Hearst showcasing innovative eco-friendly materials.',
     author: 'Fashion Editor',
     publishedDate: new Date().toISOString(),
     source: 'Fashion News',
