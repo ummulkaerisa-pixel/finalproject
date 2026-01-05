@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 
 // Predefined style elements for mood boards
 const styleElements = {
@@ -40,16 +40,10 @@ function StyleMoodBoard() {
   const [selectedMoods, setSelectedMoods] = useState([])
   const [boardTitle, setBoardTitle] = useState('My Style Vision')
   const [notes, setNotes] = useState('')
-  const [savedBoards, setSavedBoards] = useState([])
-  const canvasRef = useRef(null)
-
-  // Load saved boards from localStorage on component mount
-  useEffect(() => {
+  const [savedBoards, setSavedBoards] = useState(() => {
     const saved = localStorage.getItem('tres-mood-boards')
-    if (saved) {
-      setSavedBoards(JSON.parse(saved))
-    }
-  }, [])
+    return saved ? JSON.parse(saved) : []
+  })
 
   const toggleSelection = (item, selectedArray, setSelectedArray) => {
     if (selectedArray.find(selected => selected.name === item.name)) {

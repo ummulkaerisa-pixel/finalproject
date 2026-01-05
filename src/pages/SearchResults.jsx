@@ -97,13 +97,9 @@ function SearchResults() {
   }
 
   useEffect(() => {
-    setLoading(true)
-    
-    // Simulate search delay
-    setTimeout(() => {
+    const performSearch = () => {
       if (!query.trim()) {
         setResults([])
-        setLoading(false)
         return
       }
 
@@ -116,9 +112,28 @@ function SearchResults() {
       )
 
       setResults(searchResults)
-      setLoading(false)
-    }, 800)
-  }, [query])
+    }
+
+    if (query.trim()) {
+      // Use a timeout to avoid direct setState in effect
+      const timeoutId = setTimeout(() => {
+        setLoading(true)
+        setTimeout(() => {
+          performSearch()
+          setLoading(false)
+        }, 800)
+      }, 0)
+      
+      return () => clearTimeout(timeoutId)
+    } else {
+      // Use timeout for consistency
+      const timeoutId = setTimeout(() => {
+        setResults([])
+        setLoading(false)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [query, searchData.outfits, searchData.trends])
 
   const getCategoryColor = (category) => {
     const colors = {

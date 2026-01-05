@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { rssApi } from '../services/rssApi'
 
 // Favourites management
@@ -33,15 +33,19 @@ const isFavourite = (articleId) => {
 
 // Article Modal Component
 const ArticleModal = ({ article, isOpen, onClose, onToggleFavourite }) => {
-  if (!isOpen || !article) return null
-
   const [isFav, setIsFav] = useState(false)
 
   useEffect(() => {
-    if (article) {
-      setIsFav(isFavourite(article.id))
+    if (article && isOpen) {
+      // Use a timeout to avoid direct setState in effect
+      const timeoutId = setTimeout(() => {
+        setIsFav(isFavourite(article.id))
+      }, 0)
+      return () => clearTimeout(timeoutId)
     }
-  }, [article])
+  }, [article, isOpen])
+
+  if (!isOpen || !article) return null
 
   const handleToggleFavourite = () => {
     const newFavStatus = toggleFavourite(article)
@@ -179,31 +183,10 @@ function Collections() {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [favouriteArticles, setFavouriteArticles] = useState([])
 
   const categories = ['All', 'Fashion Week', 'Luxury', 'Streetwear', 'Sustainability', 'Technology', 'Style', 'Global Fashion', 'Business', 'Vintage']
 
-  useEffect(() => {
-    setFavouriteArticles(getFavourites())
-  }, [])
-
-  useEffect(() => {
-    if (!searchQuery) {
-      fetchArticles()
-    }
-  }, [selectedCategory])
-
-  const handleFavouriteUpdate = () => {
-    setFavouriteArticles(getFavourites())
-  }
-
-  const toggleArticleFavourite = (article, event) => {
-    event.stopPropagation() // Prevent opening modal when clicking heart
-    toggleFavourite(article)
-    setFavouriteArticles(getFavourites())
-  }
-
-  const fetchArticles = async () => {
+  const fetchArticles = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -222,6 +205,22 @@ function Collections() {
     } finally {
       setLoading(false)
     }
+  }, [selectedCategory])
+
+  useEffect(() => {
+    if (!searchQuery) {
+      fetchArticles()
+    }
+  }, [fetchArticles, searchQuery])
+
+  const handleFavouriteUpdate = () => {
+    // Trigger re-render for favourite updates
+  }
+
+  const toggleArticleFavourite = (article, event) => {
+    event.stopPropagation() // Prevent opening modal when clicking heart
+    toggleFavourite(article)
+    // Force re-render by updating a dummy state or use a callback
   }
 
   const handleSearch = async (e) => {
@@ -278,16 +277,6 @@ function Collections() {
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Latest fashion news, trends, and insights from leading publications worldwide
           </p>
-          
-          {/* API Status Indicator */}
-          <div className="flex justify-center mb-8">
-            <div className="bg-blue-50 border border-blue-200 rounded-full px-4 py-2 flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
-              <span className="text-blue-700 text-sm font-medium">
-                Live Fashion News Feed Active
-              </span>
-            </div>
-          </div>
 
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto mb-8">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 // Fashion events data for 2026
 const fashionEvents = {
@@ -56,7 +56,6 @@ const eventTypeIcons = {
 }
 
 function FashionCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedYear, setSelectedYear] = useState(2026)
   const [selectedEvent, setSelectedEvent] = useState(null)
@@ -116,9 +115,9 @@ function FashionCalendar() {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dayEvents = events.filter(event => event.date === day)
-      const isToday = day === currentDate.getDate() && 
-                     selectedMonth === currentDate.getMonth() && 
-                     selectedYear === currentDate.getFullYear()
+      const isToday = day === new Date().getDate() && 
+                     selectedMonth === new Date().getMonth() && 
+                     selectedYear === new Date().getFullYear()
       
       days.push(
         <div key={day} className={`h-24 border border-gray-200 p-2 ${isToday ? 'bg-rose-50 border-rose-300' : 'hover:bg-gray-50'}`}>
