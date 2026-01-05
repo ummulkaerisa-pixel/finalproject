@@ -278,6 +278,16 @@ function Collections() {
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
             Latest fashion news, trends, and insights from leading publications worldwide
           </p>
+          
+          {/* API Status Indicator */}
+          <div className="flex justify-center mb-8">
+            <div className="bg-blue-50 border border-blue-200 rounded-full px-4 py-2 flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
+              <span className="text-blue-700 text-sm font-medium">
+                Live Fashion News Feed Active
+              </span>
+            </div>
+          </div>
 
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto mb-8">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 // Favourites management
 const getFavourites = () => {
@@ -171,30 +172,30 @@ function Favourites() {
             <p className="text-gray-500 mb-8 max-w-md mx-auto">
               Start exploring fashion articles and click the heart icon to save your favourites here.
             </p>
-            <a
-              href="/collections"
+            <Link
+              to="/collections"
               className="inline-flex items-center bg-rose-500 text-white px-6 py-3 rounded-full font-medium hover:bg-rose-600 transition-colors"
             >
               Explore Articles
               <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
-            </a>
+            </Link>
           </div>
         )}
 
         {/* Back to Magazine */}
         {favouriteArticles.length > 0 && (
           <div className="text-center mt-16">
-            <a
-              href="/collections"
+            <Link
+              to="/collections"
               className="inline-flex items-center text-rose-600 hover:text-rose-700 font-medium"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               Back to Très.Magazine
-            </a>
+            </Link>
           </div>
         )}
       </div>
