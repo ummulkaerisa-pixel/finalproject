@@ -193,6 +193,8 @@ function Collections() {
       setLoading(true)
       setError(null)
       
+      console.log('🔄 Collections: Fetching articles...', { selectedCategory, page })
+      
       let response
       if (selectedCategory === 'All') {
         response = await rssApi.getAllArticles(page)
@@ -200,12 +202,18 @@ function Collections() {
         response = await rssApi.getArticlesByCategory(selectedCategory, page)
       }
       
+      console.log('✅ Collections: Articles fetched successfully', {
+        articlesCount: response.articles.length,
+        totalPages: response.pagination?.totalPages,
+        source: response.source
+      })
+      
       setArticles(response.articles)
       setPagination(response.pagination)
       setCurrentPage(page)
     } catch (err) {
+      console.error('❌ Collections: Error fetching articles:', err)
       setError('Failed to load articles. Please try again.')
-      console.error('Error fetching articles:', err)
     } finally {
       setLoading(false)
     }
