@@ -36,85 +36,130 @@ const getFallbackImage = (index) => {
   return fashionImages[index % fashionImages.length]
 }
 
-// Try to fetch real fashion news from NewsAPI
+// Try to fetch real fashion news from NewsAPI via serverless function
 const fetchRealFashionNews = async (query = 'fashion', page = 1, pageSize = ARTICLES_PER_PAGE) => {
-  if (!NEWS_API_KEY) {
-    console.log('⚠️ NewsAPI key not found, using generated content')
-    return null
-  }
-
   try {
-    console.log('🌐 Fetching real fashion news from NewsAPI...')
+    console.log('🌐 Fetching real fashion news via API endpoint...')
     
-    // Build NewsAPI URL
+    // Try the Vercel serverless function first
     const params = new URLSearchParams({
-      apiKey: NEWS_API_KEY,
-      q: query,
-      language: 'en',
-      sortBy: 'publishedAt',
+      query: query,
       page: page.toString(),
-      pageSize: pageSize.toString(),
-      domains: FASHION_SOURCES.join(',')
+      pageSize: pageSize.toString()
     })
 
-    const url = `${NEWS_API_BASE_URL}/everything?${params}`
+    const apiUrl = `/api/fashion-news?${params}`
     
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'User-Agent': 'TresNow/1.0'
+        'Content-Type': 'application/json'
       }
     })
 
     if (!response.ok) {
-      throw new Error(`NewsAPI HTTP ${response.status}: ${response.statusText}`)
+      throw new Error(`API HTTP ${response.status}: ${response.statusText}`)
     }
 
     const data = await response.json()
 
-    if (data.status === 'ok' && data.articles && data.articles.length > 0) {
-      console.log(`✅ NewsAPI: Fetched ${data.articles.length} real articles`)
+    if (data.success && data.articles && data.articles.length > 0) {
+      console.log(`✅ API: Fetched ${data.articles.length} real articles`)
       
-      // Process and clean the articles
-      const processedArticles = data.articles
-        .filter(article => 
-          article.title && 
-          article.description && 
-          !article.title.includes('[Removed]') &&
-          !article.description.includes('[Removed]')
-        )
-        .map((article, index) => {
-          const cleanTitle = article.title.replace(/\[.*?\]/g, '').trim()
-          const cleanDescription = article.description.replace(/\[.*?\]/g, '').trim()
-          
-          return {
-            id: `newsapi-${Date.now()}-${index}`,
-            title: cleanTitle,
-            description: cleanDescription.length > 200 ? cleanDescription.substring(0, 200) + '...' : cleanDescription,
-            content: article.content || cleanDescription,
-            author: article.author || 'Fashion Editor',
-            publishedDate: article.publishedAt,
-            source: article.source?.name || 'Fashion News',
-            category: getCategoryFromText(`${cleanTitle} ${cleanDescription}`),
-            imageUrl: article.urlToImage || getFallbackImage(index),
-            readTime: getReadTime(article.content || cleanDescription),
-            tags: getTags(cleanTitle, cleanDescription),
-            link: article.url || '#'
-          }
-        })
-
       return {
-        articles: processedArticles,
+        articles: data.articles,
         totalResults: data.totalResults,
         isRealData: true
       }
+    } else if (data.fallback) {
+      console.log('⚠️ API returned fallback flag, using generated content')
+      return null
     } else {
-      throw new Error('No articles returned from NewsAPI')
+      throw new Error('No articles returned from API')
     }
 
   } catch (error) {
-    console.log('⚠️ NewsAPI failed:', error.message)
-    return null
+    console.log('⚠️ API endpoint failed:', error.message)
+    
+    // Fallback to direct NewsAPI call (will likely fail due to CORS in browser)
+    if (!NEWS_API_KEY) {
+      console.log('⚠️ NewsAPI key not found, using generated content')
+      return null
+    }
+
+    try {
+      console.log('🌐 Trying direct NewsAPI call as fallback...')
+      
+      // Build NewsAPI URL
+      const params = new URLSearchParams({
+        apiKey: NEWS_API_KEY,
+        q: query,
+        language: 'en',
+        sortBy: 'publishedAt',
+        page: page.toString(),
+        pageSize: pageSize.toString(),
+        domains: FASHION_SOURCES.join(',')
+      })
+
+      const url = `${NEWS_API_BASE_URL}/everything?${params}`
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'TresNow/1.0'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`NewsAPI HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.status === 'ok' && data.articles && data.articles.length > 0) {
+        console.log(`✅ Direct NewsAPI: Fetched ${data.articles.length} real articles`)
+        
+        // Process and clean the articles
+        const processedArticles = data.articles
+          .filter(article => 
+            article.title && 
+            article.description && 
+            !article.title.includes('[Removed]') &&
+            !article.description.includes('[Removed]')
+          )
+          .map((article, index) => {
+            const cleanTitle = article.title.replace(/\[.*?\]/g, '').trim()
+            const cleanDescription = article.description.replace(/\[.*?\]/g, '').trim()
+            
+            return {
+              id: `newsapi-${Date.now()}-${index}`,
+              title: cleanTitle,
+              description: cleanDescription.length > 200 ? cleanDescription.substring(0, 200) + '...' : cleanDescription,
+              content: article.content || cleanDescription,
+              author: article.author || 'Fashion Editor',
+              publishedDate: article.publishedAt,
+              source: article.source?.name || 'Fashion News',
+              category: getCategoryFromText(`${cleanTitle} ${cleanDescription}`),
+              imageUrl: article.urlToImage || getFallbackImage(index),
+              readTime: getReadTime(article.content || cleanDescription),
+              tags: getTags(cleanTitle, cleanDescription),
+              link: article.url || '#'
+            }
+          })
+
+        return {
+          articles: processedArticles,
+          totalResults: data.totalResults,
+          isRealData: true
+        }
+      } else {
+        throw new Error('No articles returned from NewsAPI')
+      }
+
+    } catch (directError) {
+      console.log('⚠️ Direct NewsAPI also failed:', directError.message)
+      return null
+    }
   }
 }
 
