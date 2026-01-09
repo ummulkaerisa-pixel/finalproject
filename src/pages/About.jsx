@@ -1,19 +1,15 @@
 function About() {
   const team = [
     {
-      name: 'Sarah Chen',
-      role: 'AI Research Lead',
-      bio: 'PhD in Machine Learning, specializing in computer vision and fashion analytics.'
+      name: 'Isa Ummulkhaer',
+      role: 'WEB DEVELOPER',
+      bio: 'Fashion expert🌸 specializing in web development and fashion technology.',
+      image: 'UMMU.jpeg'
     },
     {
-      name: 'Marcus Johnson',
-      role: 'Fashion Director',
-      bio: '15+ years in luxury fashion, former stylist for major fashion houses.'
-    },
-    {
-      name: 'Elena Rodriguez',
-      role: 'Data Scientist',
-      bio: 'Expert in trend forecasting and consumer behavior analysis.'
+      name: 'Daniel',
+      role: 'WEB DEVELOPER',
+      bio: 'Web developer focused on creating innovative fashion platforms and user experiences.'
     }
   ]
 
@@ -126,12 +122,22 @@ function About() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-8 justify-center">
             {team.map((member, index) => (
               <div key={index} className="bg-white rounded-3xl shadow-xl p-8 text-center group hover:shadow-2xl transition-all duration-300">
-                <div className="w-24 h-24 rounded-full mx-auto mb-6 bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center text-3xl text-white group-hover:scale-110 transition-transform duration-300">
-                  👤
-                </div>
+                {member.image ? (
+                  <div className="w-24 h-24 rounded-full mx-auto mb-6 overflow-hidden group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <img 
+                      src={member.image} 
+                      alt={member.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 rounded-full mx-auto mb-6 bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center text-3xl text-white group-hover:scale-110 transition-transform duration-300">
+                    👤
+                  </div>
+                )}
                 <h3 className="text-xl font-bold text-gray-900 mb-2">{member.name}</h3>
                 <p className="text-rose-600 font-semibold mb-4">{member.role}</p>
                 <p className="text-gray-600 leading-relaxed">{member.bio}</p>

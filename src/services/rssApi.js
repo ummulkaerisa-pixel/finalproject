@@ -1,14 +1,21 @@
-// RSS Feed API service - Real NewsAPI implementation for fashion news
-// Using NewsAPI with provided API key for daily updated fashion content
+// RSS Feed API service - Optimized NewsAPI implementation for production
+// Fast, reliable fashion news with no fallback data
 
-// NewsAPI configuration
+// Environment variables
+const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY
+const NEWS_API_BASE_URL = import.meta.env.VITE_NEWS_API_BASE_URL || 'https://newsapi.org/v2'
+const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT) || 8000
+const MAX_ARTICLES = parseInt(import.meta.env.VITE_MAX_ARTICLES) || 50
 
-const NEWS_API_KEY = '1b132003e30d45b0bfcac300ab11af9f'
-const NEWS_API_BASE_URL = 'https://newsapi.org/v2'
-// Fashion-focused domains and sources
-const FASHION_DOMAINS = [
+// Validate API key
+if (!NEWS_API_KEY) {
+  throw new Error('NewsAPI key is required. Please check your .env file.')
+}
+
+// Fashion-focused sources for better performance
+const FASHION_SOURCES = [
   'vogue.com',
-  'harpersbazaar.com',
+  'harpersbazaar.com', 
   'elle.com',
   'fashionista.com',
   'wwd.com',
@@ -17,268 +24,157 @@ const FASHION_DOMAINS = [
   'glamour.com',
   'marieclaire.com',
   'instyle.com'
-]
+].join(',')
 
-// Fashion keywords for filtering
+// Optimized fashion keywords
 const FASHION_KEYWORDS = [
   'fashion',
-  'style',
+  'style', 
   'designer',
   'runway',
-  'fashion week',
   'luxury',
   'streetwear',
-  'sustainable fashion',
-  'fashion trends',
-  'haute couture',
-  'fashion industry',
-  'fashion brand'
-]
+  'trends'
+].join(' OR ')
 
-// Category mapping for articles
-const categorizeArticle = (title, description, content) => {
-  const text = `${title} ${description} ${content}`.toLowerCase()
+// Fast HTTP client with timeout
+const fetchWithTimeout = async (url, options = {}) => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
   
-  if (text.includes('fashion week') || text.includes('runway') || text.includes('show')) return 'Fashion Week'
-  if (text.includes('luxury') || text.includes('designer') || text.includes('haute couture')) return 'Luxury'
-  if (text.includes('streetwear') || text.includes('street style') || text.includes('urban')) return 'Streetwear'
-  if (text.includes('sustainable') || text.includes('eco') || text.includes('ethical')) return 'Sustainability'
-  if (text.includes('tech') || text.includes('ai') || text.includes('digital') || text.includes('virtual')) return 'Technology'
-  if (text.includes('vintage') || text.includes('retro') || text.includes('classic')) return 'Vintage'
-  if (text.includes('business') || text.includes('market') || text.includes('industry')) return 'Business'
-  if (text.includes('korean') || text.includes('k-fashion') || text.includes('global')) return 'Global Fashion'
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    })
+    
+    clearTimeout(timeoutId)
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(`API Error: ${response.status} - ${errorData.message || response.statusText}`)
+    }
+    
+    return response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error.name === 'AbortError') {
+      throw new Error('Request timeout - API took too long to respond')
+    }
+    throw error
+  }
+}
+
+// Category mapping for fast categorization
+const getCategoryFromText = (text) => {
+  const lowerText = text.toLowerCase()
+  
+  if (lowerText.includes('fashion week') || lowerText.includes('runway')) return 'Fashion Week'
+  if (lowerText.includes('luxury') || lowerText.includes('designer')) return 'Luxury'
+  if (lowerText.includes('streetwear') || lowerText.includes('street style')) return 'Streetwear'
+  if (lowerText.includes('sustainable') || lowerText.includes('eco')) return 'Sustainability'
+  if (lowerText.includes('tech') || lowerText.includes('ai') || lowerText.includes('digital')) return 'Technology'
+  if (lowerText.includes('vintage') || lowerText.includes('retro')) return 'Vintage'
+  if (lowerText.includes('business') || lowerText.includes('market')) return 'Business'
+  if (lowerText.includes('global') || lowerText.includes('international')) return 'Global Fashion'
   
   return 'Style'
 }
 
-// Estimate read time based on content length
-const estimateReadTime = (content) => {
+// Fast read time calculation
+const getReadTime = (content) => {
   if (!content) return '3 min read'
-  const wordsPerMinute = 200
-  const wordCount = content.split(' ').length
-  const minutes = Math.ceil(wordCount / wordsPerMinute)
+  const words = content.split(' ').length
+  const minutes = Math.max(1, Math.ceil(words / 200))
   return `${minutes} min read`
 }
 
-// Extract tags from content
+// Extract relevant tags quickly
 const extractTags = (title, description) => {
-  const commonFashionTerms = [
-    'fashion', 'style', 'trends', 'luxury', 'streetwear', 'sustainable', 
-    'designer', 'runway', 'fashion week', 'vintage', 'minimalism', 
-    'maximalism', 'tech', 'ai', 'digital', 'business', 'retail'
-  ]
-  
+  const fashionTerms = ['fashion', 'style', 'trends', 'luxury', 'streetwear', 'sustainable', 'designer', 'runway', 'vintage', 'tech']
   const text = `${title} ${description}`.toLowerCase()
-  const foundTags = commonFashionTerms.filter(term => text.includes(term))
-  
-  return foundTags.slice(0, 4)
+  return fashionTerms.filter(term => text.includes(term)).slice(0, 4)
 }
 
-// Clean and format content
-const cleanContent = (text) => {
+// Clean content for better performance
+const cleanText = (text) => {
   if (!text) return ''
-  return text.replace(/\[.*?\]/g, '').trim() // Remove [+chars] indicators
+  return text.replace(/\[.*?\]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-// Fetch fashion news from NewsAPI
-const fetchFashionNews = async (query = 'fashion', pageSize = 20) => {
-  try {
-    console.log(`🔄 Fetching fashion news from NewsAPI...`)
-    
-    // Build query with fashion keywords
-    const fashionQuery = `(${FASHION_KEYWORDS.join(' OR ')}) AND ${query}`
-    
-    const params = new URLSearchParams({
-      q: fashionQuery,
-      domains: FASHION_DOMAINS.join(','),
-      language: 'en',
-      sortBy: 'publishedAt',
-      pageSize: pageSize.toString(),
-      apiKey: NEWS_API_KEY
+// Process articles efficiently
+const processArticles = (articles) => {
+  return articles
+    .filter(article => 
+      article.title && 
+      article.description && 
+      article.publishedAt &&
+      article.source?.name &&
+      !article.title.includes('[Removed]') &&
+      !article.title.toLowerCase().includes('removed')
+    )
+    .map((article, index) => {
+      const cleanTitle = cleanText(article.title)
+      const cleanDescription = cleanText(article.description)
+      const cleanContent = cleanText(article.content || article.description)
+      
+      return {
+        id: `${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+        title: cleanTitle,
+        description: cleanDescription.length > 200 ? cleanDescription.substring(0, 200) + '...' : cleanDescription,
+        content: cleanContent,
+        author: article.author || 'Fashion Editor',
+        publishedDate: article.publishedAt,
+        source: article.source.name,
+        category: getCategoryFromText(`${cleanTitle} ${cleanDescription}`),
+        imageUrl: article.urlToImage || null,
+        readTime: getReadTime(cleanContent),
+        tags: extractTags(cleanTitle, cleanDescription),
+        link: article.url
+      }
     })
-    
-    const response = await fetch(`${NEWS_API_BASE_URL}/everything?${params}`)
-    
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`NewsAPI error: ${errorData.message || response.statusText}`)
-    }
-    
-    const data = await response.json()
-    
-    if (data.status !== 'ok') {
-      throw new Error(`NewsAPI error: ${data.message}`)
-    }
-    
-    console.log(`✅ Successfully fetched ${data.articles?.length || 0} articles from NewsAPI`)
-    
-    // Process and filter articles
-    const processedArticles = data.articles
-      .filter(article => {
-        // Filter out articles without essential data
-        return article.title && 
-               article.description && 
-               article.publishedAt &&
-               article.source?.name &&
-               !article.title.includes('[Removed]')
-      })
-      .map((article, index) => {
-        const category = categorizeArticle(article.title, article.description, article.content || '')
-        const cleanDescription = cleanContent(article.description)
-        const cleanContentText = cleanContent(article.content || article.description)
-        
-        return {
-          id: Date.now() + index + Math.random() * 1000,
-          title: article.title,
-          description: cleanDescription.length > 200 ? 
-            cleanDescription.substring(0, 200) + '...' : cleanDescription,
-          content: cleanContentText,
-          author: article.author || 'Fashion Editor',
-          publishedDate: article.publishedAt,
-          source: article.source.name,
-          category,
-          imageUrl: article.urlToImage || `https://images.unsplash.com/photo-1445205170230-053b83016050?w=400&h=600&fit=crop&random=${index}`,
-          readTime: estimateReadTime(cleanContentText),
-          tags: extractTags(article.title, article.description),
-          link: article.url
-        }
-      })
-    
-    console.log(`📰 Processed ${processedArticles.length} fashion articles`)
-    return processedArticles
-    
-  } catch (error) {
-    console.error('❌ Error fetching from NewsAPI:', error)
-    throw error
-  }
 }
 
-// Fetch top fashion headlines
-const fetchFashionHeadlines = async (pageSize = 15) => {
-  try {
-    console.log(`🔄 Fetching fashion headlines from NewsAPI...`)
-    
-    const params = new URLSearchParams({
-      q: 'fashion OR style OR designer',
-      sources: 'vogue,elle,harpers-bazaar,glamour,marie-claire',
-      language: 'en',
-      sortBy: 'publishedAt',
-      pageSize: pageSize.toString(),
-      apiKey: NEWS_API_KEY
-    })
-    
-    const response = await fetch(`${NEWS_API_BASE_URL}/everything?${params}`)
-    
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(`NewsAPI error: ${errorData.message || response.statusText}`)
-    }
-    
-    const data = await response.json()
-    
-    if (data.status !== 'ok') {
-      throw new Error(`NewsAPI error: ${data.message}`)
-    }
-    
-    console.log(`✅ Successfully fetched ${data.articles?.length || 0} headlines from NewsAPI`)
-    
-    // Process headlines
-    const processedHeadlines = data.articles
-      .filter(article => {
-        return article.title && 
-               article.description && 
-               article.publishedAt &&
-               !article.title.includes('[Removed]')
-      })
-      .map((article, index) => {
-        const category = categorizeArticle(article.title, article.description, article.content || '')
-        
-        return {
-          id: Date.now() + 1000 + index + Math.random() * 1000,
-          title: article.title,
-          description: cleanContent(article.description).substring(0, 200) + '...',
-          content: cleanContent(article.content || article.description),
-          author: article.author || 'Fashion Editor',
-          publishedDate: article.publishedAt,
-          source: article.source.name,
-          category,
-          imageUrl: article.urlToImage || `https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=600&fit=crop&random=${index}`,
-          readTime: estimateReadTime(article.content || article.description),
-          tags: extractTags(article.title, article.description),
-          link: article.url
-        }
-      })
-    
-    return processedHeadlines
-    
-  } catch (error) {
-    console.error('❌ Error fetching headlines from NewsAPI:', error)
-    throw error
-  }
-}
-
-// Fallback articles in case API fails
-const FALLBACK_ARTICLES = [
-  {
-    id: 1,
-    title: 'Spring 2026 Fashion Week: The Trends That Will Define Next Year',
-    description: 'From sustainable luxury to bold streetwear, discover the key trends emerging from the latest fashion week shows across Paris, Milan, and New York.',
-    content: 'Fashion Week Spring 2026 has concluded with remarkable shows that set the tone for next year\'s trends. Sustainability took center stage with brands like Stella McCartney and Gabriela Hearst showcasing innovative eco-friendly materials.',
-    author: 'Fashion Editor',
-    publishedDate: new Date().toISOString(),
-    source: 'Fashion News',
-    category: 'Fashion Week',
-    imageUrl: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&h=600&fit=crop',
-    readTime: '5 min read',
-    tags: ['fashion week', 'trends', 'sustainability', 'luxury'],
-    link: '#'
-  }
-]
-
+// Main API functions
 export const rssApi = {
-  // Get all fashion news articles from NewsAPI
+  // Get all fashion articles - optimized for speed
   async getAllArticles() {
     try {
-      console.log('🚀 Fetching all fashion articles from NewsAPI...')
+      console.log('🚀 Fetching fashion articles from NewsAPI...')
       
-      // Fetch both general fashion news and headlines
-      const [fashionNews, headlines] = await Promise.allSettled([
-        fetchFashionNews('fashion trends', 15),
-        fetchFashionHeadlines(10)
-      ])
+      const params = new URLSearchParams({
+        q: FASHION_KEYWORDS,
+        domains: FASHION_SOURCES,
+        language: 'en',
+        sortBy: 'publishedAt',
+        pageSize: MAX_ARTICLES.toString(),
+        apiKey: NEWS_API_KEY
+      })
       
-      let allArticles = []
+      const url = `${NEWS_API_BASE_URL}/everything?${params}`
+      const data = await fetchWithTimeout(url)
       
-      // Add successful results
-      if (fashionNews.status === 'fulfilled') {
-        allArticles.push(...fashionNews.value)
+      if (data.status !== 'ok') {
+        throw new Error(`NewsAPI Error: ${data.message}`)
       }
       
-      if (headlines.status === 'fulfilled') {
-        allArticles.push(...headlines.value)
+      if (!data.articles || data.articles.length === 0) {
+        throw new Error('No articles found')
       }
       
-      // Remove duplicates based on title
-      const uniqueArticles = allArticles.filter((article, index, self) => 
-        index === self.findIndex(a => a.title.toLowerCase() === article.title.toLowerCase())
-      )
+      const processedArticles = processArticles(data.articles)
       
       // Sort by publication date (newest first)
-      const sortedArticles = uniqueArticles.sort((a, b) => 
+      const sortedArticles = processedArticles.sort((a, b) => 
         new Date(b.publishedDate) - new Date(a.publishedDate)
       )
       
-      if (sortedArticles.length === 0) {
-        console.log('⚠️ No articles fetched, using fallback')
-        return {
-          articles: FALLBACK_ARTICLES,
-          total: FALLBACK_ARTICLES.length,
-          lastUpdated: new Date().toISOString(),
-          source: 'Fallback Data'
-        }
-      }
-      
-      console.log(`🎉 Successfully fetched ${sortedArticles.length} unique fashion articles`)
+      console.log(`✅ Successfully loaded ${sortedArticles.length} fashion articles`)
       
       return {
         articles: sortedArticles,
@@ -287,27 +183,55 @@ export const rssApi = {
         source: 'NewsAPI'
       }
     } catch (error) {
-      console.error('❌ Error in getAllArticles:', error)
-      
-      // Return fallback data
-      return {
-        articles: FALLBACK_ARTICLES,
-        total: FALLBACK_ARTICLES.length,
-        lastUpdated: new Date().toISOString(),
-        source: 'Fallback Data'
-      }
+      console.error('❌ Failed to fetch articles:', error.message)
+      throw new Error(`Failed to load fashion news: ${error.message}`)
     }
   },
 
-  // Get articles by category
+  // Get articles by category - fast filtering
   async getArticlesByCategory(category) {
     try {
-      console.log(`📂 Fetching articles for category: ${category}`)
+      console.log(`📂 Fetching ${category} articles...`)
       
-      const allArticlesResponse = await this.getAllArticles()
-      const filteredArticles = allArticlesResponse.articles.filter(article => 
-        article.category.toLowerCase() === category.toLowerCase()
-      )
+      // Use category-specific search terms for better results
+      const categoryKeywords = {
+        'Fashion Week': 'fashion week runway show',
+        'Luxury': 'luxury designer haute couture',
+        'Streetwear': 'streetwear urban fashion',
+        'Sustainability': 'sustainable fashion eco ethical',
+        'Technology': 'fashion tech AI digital',
+        'Style': 'style outfit fashion',
+        'Global Fashion': 'international fashion global',
+        'Business': 'fashion business industry market',
+        'Vintage': 'vintage retro fashion'
+      }
+      
+      const searchTerm = categoryKeywords[category] || FASHION_KEYWORDS
+      
+      const params = new URLSearchParams({
+        q: searchTerm,
+        domains: FASHION_SOURCES,
+        language: 'en',
+        sortBy: 'publishedAt',
+        pageSize: '30',
+        apiKey: NEWS_API_KEY
+      })
+      
+      const url = `${NEWS_API_BASE_URL}/everything?${params}`
+      const data = await fetchWithTimeout(url)
+      
+      if (data.status !== 'ok') {
+        throw new Error(`NewsAPI Error: ${data.message}`)
+      }
+      
+      const processedArticles = processArticles(data.articles)
+      
+      // Filter by category and sort
+      const filteredArticles = processedArticles
+        .filter(article => article.category === category)
+        .sort((a, b) => new Date(b.publishedDate) - new Date(a.publishedDate))
+      
+      console.log(`✅ Found ${filteredArticles.length} ${category} articles`)
       
       return {
         articles: filteredArticles,
@@ -316,17 +240,12 @@ export const rssApi = {
         lastUpdated: new Date().toISOString()
       }
     } catch (error) {
-      console.error('❌ Error in getArticlesByCategory:', error)
-      return {
-        articles: [],
-        total: 0,
-        category,
-        lastUpdated: new Date().toISOString()
-      }
+      console.error(`❌ Failed to fetch ${category} articles:`, error.message)
+      throw new Error(`Failed to load ${category} articles: ${error.message}`)
     }
   },
 
-  // Get featured articles (most recent)
+  // Get featured articles - top recent articles
   async getFeaturedArticles(limit = 6) {
     try {
       console.log(`⭐ Fetching ${limit} featured articles...`)
@@ -340,67 +259,60 @@ export const rssApi = {
         lastUpdated: new Date().toISOString()
       }
     } catch (error) {
-      console.error('❌ Error in getFeaturedArticles:', error)
-      return {
-        articles: FALLBACK_ARTICLES.slice(0, limit),
-        total: Math.min(limit, FALLBACK_ARTICLES.length),
-        lastUpdated: new Date().toISOString()
-      }
+      console.error('❌ Failed to fetch featured articles:', error.message)
+      throw new Error(`Failed to load featured articles: ${error.message}`)
     }
   },
 
-  // Enhanced search with NewsAPI
+  // Search articles - optimized search
   async searchArticles(query) {
     try {
-      console.log(`🔍 Searching fashion articles for: "${query}"`)
+      console.log(`🔍 Searching for: "${query}"`)
       
-      // Search NewsAPI directly for the query
-      const searchResults = await fetchFashionNews(query, 15)
-      
-      if (searchResults.length === 0) {
-        // Fallback to existing articles if no results
-        const allArticlesResponse = await this.getAllArticles()
-        const existingResults = allArticlesResponse.articles.filter(article =>
-          article.title.toLowerCase().includes(query.toLowerCase()) ||
-          article.description.toLowerCase().includes(query.toLowerCase()) ||
-          article.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
-        )
-        
-        return {
-          articles: existingResults,
-          total: existingResults.length,
-          query,
-          lastUpdated: new Date().toISOString(),
-          source: 'Existing Articles'
-        }
+      if (!query || query.trim().length < 2) {
+        throw new Error('Search query must be at least 2 characters')
       }
       
-      console.log(`🎯 Found ${searchResults.length} articles for search: "${query}"`)
+      const searchQuery = `${query} AND (${FASHION_KEYWORDS})`
+      
+      const params = new URLSearchParams({
+        q: searchQuery,
+        domains: FASHION_SOURCES,
+        language: 'en',
+        sortBy: 'relevancy',
+        pageSize: '25',
+        apiKey: NEWS_API_KEY
+      })
+      
+      const url = `${NEWS_API_BASE_URL}/everything?${params}`
+      const data = await fetchWithTimeout(url)
+      
+      if (data.status !== 'ok') {
+        throw new Error(`NewsAPI Error: ${data.message}`)
+      }
+      
+      const processedArticles = processArticles(data.articles)
+      
+      console.log(`🎯 Found ${processedArticles.length} results for "${query}"`)
       
       return {
-        articles: searchResults,
-        total: searchResults.length,
+        articles: processedArticles,
+        total: processedArticles.length,
         query,
         lastUpdated: new Date().toISOString(),
         source: 'NewsAPI Search'
       }
     } catch (error) {
-      console.error('❌ Error in searchArticles:', error)
-      return {
-        articles: [],
-        total: 0,
-        query,
-        lastUpdated: new Date().toISOString(),
-        source: 'Error'
-      }
+      console.error(`❌ Search failed for "${query}":`, error.message)
+      throw new Error(`Search failed: ${error.message}`)
     }
   },
 
-  // Get article by ID
+  // Get article by ID - fast lookup
   async getArticleById(id) {
     try {
       const allArticlesResponse = await this.getAllArticles()
-      const article = allArticlesResponse.articles.find(article => article.id === parseInt(id))
+      const article = allArticlesResponse.articles.find(article => article.id === id)
       
       if (!article) {
         throw new Error(`Article with ID ${id} not found`)
@@ -408,12 +320,12 @@ export const rssApi = {
       
       return article
     } catch (error) {
-      console.error('❌ Error in getArticleById:', error)
-      throw new Error(`Failed to fetch article with ID: ${id}`)
+      console.error(`❌ Failed to fetch article ${id}:`, error.message)
+      throw new Error(`Failed to fetch article: ${error.message}`)
     }
   },
 
-  // Get articles by source
+  // Get articles by source - source filtering
   async getArticlesBySource(source) {
     try {
       const allArticlesResponse = await this.getAllArticles()
@@ -428,13 +340,8 @@ export const rssApi = {
         lastUpdated: new Date().toISOString()
       }
     } catch (error) {
-      console.error('❌ Error in getArticlesBySource:', error)
-      return {
-        articles: [],
-        total: 0,
-        source,
-        lastUpdated: new Date().toISOString()
-      }
+      console.error(`❌ Failed to fetch articles from ${source}:`, error.message)
+      throw new Error(`Failed to fetch articles from ${source}: ${error.message}`)
     }
   }
 }
