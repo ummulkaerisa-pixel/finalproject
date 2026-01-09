@@ -386,36 +386,6 @@ const processArticles = (articles) => {
     })
 }
 
-// Category detection
-const getCategoryFromText = (text) => {
-  const lowerText = text.toLowerCase()
-  
-  if (lowerText.includes('fashion week') || lowerText.includes('runway')) return 'Fashion Week'
-  if (lowerText.includes('luxury') || lowerText.includes('designer')) return 'Luxury'
-  if (lowerText.includes('streetwear') || lowerText.includes('street style')) return 'Streetwear'
-  if (lowerText.includes('sustainable') || lowerText.includes('eco')) return 'Sustainability'
-  if (lowerText.includes('tech') || lowerText.includes('ai') || lowerText.includes('digital')) return 'Technology'
-  if (lowerText.includes('vintage') || lowerText.includes('retro')) return 'Vintage'
-  if (lowerText.includes('business') || lowerText.includes('market')) return 'Business'
-  if (lowerText.includes('global') || lowerText.includes('korean')) return 'Global Fashion'
-  
-  return 'Style'
-}
-
-// Helper functions
-const getReadTime = (content) => {
-  if (!content) return '3 min read'
-  const words = content.split(' ').length
-  const minutes = Math.max(1, Math.ceil(words / 200))
-  return `${minutes} min read`
-}
-
-const getTags = (title, description) => {
-  const terms = ['fashion', 'style', 'trends', 'luxury', 'streetwear', 'sustainable', 'designer', 'runway', 'vintage', 'tech']
-  const text = `${title} ${description}`.toLowerCase()
-  return terms.filter(term => text.includes(term)).slice(0, 4)
-}
-
 // Main API service
 export const rssApi = {
   // Get all fashion articles with pagination - tries real API first
@@ -485,73 +455,6 @@ export const rssApi = {
         lastUpdated: new Date().toISOString(),
         source: 'Generated Content (Error Fallback)'
       }
-    }
-  },
-
-  // Search articles with real API integration
-  async searchArticles(query, page = 1, limit = ARTICLES_PER_PAGE) {
-    try {
-      console.log(`🔍 Searching for: "${query}" (page ${page})`)
-      
-      if (!query || query.trim().length < 2) {
-        throw new Error('Search query must be at least 2 characters long')
-      }
-      
-      // Try real NewsAPI search first
-      const realNewsResult = await fetchRealFashionNews(`${query} AND (fashion OR style OR luxury OR designer)`, page, limit)
-      
-      if (realNewsResult && realNewsResult.articles.length > 0) {
-        console.log(`✅ Real search results: ${realNewsResult.articles.length} articles found`)
-        
-        const paginatedResult = {
-          articles: realNewsResult.articles,
-          pagination: {
-            currentPage: page,
-            totalPages: Math.ceil(realNewsResult.totalResults / limit),
-            totalArticles: realNewsResult.totalResults,
-            articlesPerPage: limit,
-            hasNextPage: page * limit < realNewsResult.totalResults,
-            hasPrevPage: page > 1
-          }
-        }
-        
-        return {
-          ...paginatedResult,
-          query,
-          lastUpdated: new Date().toISOString(),
-          source: 'NewsAPI Search Results'
-        }
-      }
-      
-      // Fallback to searching generated content
-      console.log('🔍 Searching generated content as fallback')
-      const allArticles = getArticles()
-      
-      const uniqueArticles = allArticles.filter((article, index, self) => 
-        index === self.findIndex(a => a.id === article.id)
-      )
-      
-      const searchResults = uniqueArticles.filter(article =>
-        article.title.toLowerCase().includes(query.toLowerCase()) ||
-        article.description.toLowerCase().includes(query.toLowerCase()) ||
-        article.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase())) ||
-        article.category.toLowerCase().includes(query.toLowerCase())
-      )
-      
-      const paginatedResult = paginateArticles(searchResults, page, limit)
-      
-      console.log(`🎯 Found ${paginatedResult.articles.length} results in generated content for "${query}"`)
-      
-      return {
-        ...paginatedResult,
-        query,
-        lastUpdated: new Date().toISOString(),
-        source: 'Generated Content Search'
-      }
-      
-    } catch (error) {
-      console.error(`❌ Search failed for "${query}":`, error.message)
-      throw new Error(`Search failed: ${error.message}`)
     }
   },
 
@@ -662,7 +565,7 @@ export const rssApi = {
     }
   },
 
-  // Search articles with pagination
+  // Search articles with real API integration
   async searchArticles(query, page = 1, limit = ARTICLES_PER_PAGE) {
     try {
       console.log(`🔍 Searching for: "${query}" (page ${page})`)
