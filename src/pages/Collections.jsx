@@ -183,22 +183,26 @@ function Collections() {
   const [isSearching, setIsSearching] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
 
   const categories = ['All', 'Fashion Week', 'Luxury', 'Streetwear', 'Sustainability', 'Technology', 'Style', 'Global Fashion', 'Business', 'Vintage']
 
-  const fetchArticles = useCallback(async () => {
+  const fetchArticles = useCallback(async (page = 1) => {
     try {
       setLoading(true)
       setError(null)
       
       let response
       if (selectedCategory === 'All') {
-        response = await rssApi.getAllArticles()
+        response = await rssApi.getAllArticles(page)
       } else {
-        response = await rssApi.getArticlesByCategory(selectedCategory)
+        response = await rssApi.getArticlesByCategory(selectedCategory, page)
       }
       
       setArticles(response.articles)
+      setPagination(response.pagination)
+      setCurrentPage(page)
     } catch (err) {
       setError('Failed to load articles. Please try again.')
       console.error('Error fetching articles:', err)
@@ -209,9 +213,18 @@ function Collections() {
 
   useEffect(() => {
     if (!searchQuery) {
-      fetchArticles()
+      fetchArticles(1) // Reset to page 1 when category changes
+      setCurrentPage(1)
     }
   }, [fetchArticles, searchQuery])
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && pagination && newPage <= pagination.totalPages) {
+      fetchArticles(newPage)
+      // Scroll to top when changing pages
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   const handleFavouriteUpdate = () => {
     // Trigger re-render for favourite updates
@@ -230,9 +243,11 @@ function Collections() {
     try {
       setIsSearching(true)
       setError(null)
+      setCurrentPage(1)
       
-      const response = await rssApi.searchArticles(searchQuery)
+      const response = await rssApi.searchArticles(searchQuery, 1)
       setArticles(response.articles)
+      setPagination(response.pagination)
       setSelectedCategory('All') // Reset category when searching
     } catch (err) {
       setError('Failed to search articles. Please try again.')
@@ -466,6 +481,76 @@ function Collections() {
             >
               {searchQuery ? 'Clear Search' : 'View All Articles'}
             </button>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && !error && !isSearching && pagination && pagination.totalPages > 1 && (
+          <div className="flex justify-center items-center mt-16 space-x-2">
+            {/* Previous Button */}
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={!pagination.hasPrevPage}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                pagination.hasPrevPage
+                  ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Previous
+            </button>
+
+            {/* Page Numbers */}
+            <div className="flex space-x-1">
+              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                let pageNum
+                if (pagination.totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= pagination.totalPages - 2) {
+                  pageNum = pagination.totalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-2 rounded-lg font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-rose-500 text-white'
+                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Next Button */}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={!pagination.hasNextPage}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                pagination.hasNextPage
+                  ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {/* Pagination Info */}
+        {!loading && !error && !isSearching && pagination && (
+          <div className="text-center mt-8 text-gray-600">
+            <p>
+              Showing {((currentPage - 1) * pagination.articlesPerPage) + 1} to {Math.min(currentPage * pagination.articlesPerPage, pagination.totalArticles)} of {pagination.totalArticles} articles
+            </p>
           </div>
         )}
       </div>
