@@ -1,43 +1,165 @@
-// RSS Feed API service - Self-contained for Vercel deployment
-// Generates fashion articles without external API dependencies
+// RSS Feed API service - Real fashion news from NewsAPI
+// Falls back to generated content if API is unavailable
 
 // Configuration constants
 const TOTAL_ARTICLES = 200
 const ARTICLES_PER_PAGE = 20
 
-console.log('🔧 Fashion API initialized for Vercel deployment')
+console.log('🔧 Fashion API initialized with real NewsAPI integration')
 
-// Verified working fashion images from Unsplash
+// NewsAPI configuration
+const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY
+const NEWS_API_BASE_URL = import.meta.env.VITE_NEWS_API_BASE_URL || 'https://newsapi.org/v2'
+
+// Fashion-related sources and keywords
+const FASHION_SOURCES = [
+  'vogue.com', 'harpersbazaar.com', 'elle.com', 'wwd.com', 
+  'fashionista.com', 'refinery29.com', 'whowhatwear.com'
+]
+
+const FASHION_KEYWORDS = [
+  'fashion', 'style', 'luxury', 'designer', 'runway', 'fashion week',
+  'streetwear', 'sustainable fashion', 'haute couture', 'trends'
+]
+
+// Fallback images for articles without images
 const fashionImages = [
   'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=600&h=800&fit=crop&auto=format&q=80',
   'https://images.unsplash.com/photo-1445205170230-053b83016050?w=600&h=800&fit=crop&auto=format&q=80',
   'https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=600&h=800&fit=crop&auto=format&q=80',
   'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1506629905607-d405d7d3b0d2?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1564557287817-3785e38ec1f5?w=600&h=800&fit=crop&auto=format&q=80',
-  'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=600&h=800&fit=crop&auto=format&q=80'
+  'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&h=800&fit=crop&auto=format&q=80'
 ]
 
-// Get image for article
+// Get fallback image
+const getFallbackImage = (index) => {
+  return fashionImages[index % fashionImages.length]
+}
+
+// Try to fetch real fashion news from NewsAPI
+const fetchRealFashionNews = async (query = 'fashion', page = 1, pageSize = ARTICLES_PER_PAGE) => {
+  if (!NEWS_API_KEY) {
+    console.log('⚠️ NewsAPI key not found, using generated content')
+    return null
+  }
+
+  try {
+    console.log('🌐 Fetching real fashion news from NewsAPI...')
+    
+    // Build NewsAPI URL
+    const params = new URLSearchParams({
+      apiKey: NEWS_API_KEY,
+      q: query,
+      language: 'en',
+      sortBy: 'publishedAt',
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+      domains: FASHION_SOURCES.join(',')
+    })
+
+    const url = `${NEWS_API_BASE_URL}/everything?${params}`
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'TresNow/1.0'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`NewsAPI HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    if (data.status === 'ok' && data.articles && data.articles.length > 0) {
+      console.log(`✅ NewsAPI: Fetched ${data.articles.length} real articles`)
+      
+      // Process and clean the articles
+      const processedArticles = data.articles
+        .filter(article => 
+          article.title && 
+          article.description && 
+          !article.title.includes('[Removed]') &&
+          !article.description.includes('[Removed]')
+        )
+        .map((article, index) => {
+          const cleanTitle = article.title.replace(/\[.*?\]/g, '').trim()
+          const cleanDescription = article.description.replace(/\[.*?\]/g, '').trim()
+          
+          return {
+            id: `newsapi-${Date.now()}-${index}`,
+            title: cleanTitle,
+            description: cleanDescription.length > 200 ? cleanDescription.substring(0, 200) + '...' : cleanDescription,
+            content: article.content || cleanDescription,
+            author: article.author || 'Fashion Editor',
+            publishedDate: article.publishedAt,
+            source: article.source?.name || 'Fashion News',
+            category: getCategoryFromText(`${cleanTitle} ${cleanDescription}`),
+            imageUrl: article.urlToImage || getFallbackImage(index),
+            readTime: getReadTime(article.content || cleanDescription),
+            tags: getTags(cleanTitle, cleanDescription),
+            link: article.url || '#'
+          }
+        })
+
+      return {
+        articles: processedArticles,
+        totalResults: data.totalResults,
+        isRealData: true
+      }
+    } else {
+      throw new Error('No articles returned from NewsAPI')
+    }
+
+  } catch (error) {
+    console.log('⚠️ NewsAPI failed:', error.message)
+    return null
+  }
+}
+
+// Category detection from article text
+const getCategoryFromText = (text) => {
+  const lowerText = text.toLowerCase()
+  
+  if (lowerText.includes('fashion week') || lowerText.includes('runway')) return 'Fashion Week'
+  if (lowerText.includes('luxury') || lowerText.includes('designer') || lowerText.includes('haute couture')) return 'Luxury'
+  if (lowerText.includes('streetwear') || lowerText.includes('street style') || lowerText.includes('urban')) return 'Streetwear'
+  if (lowerText.includes('sustainable') || lowerText.includes('eco') || lowerText.includes('green fashion')) return 'Sustainability'
+  if (lowerText.includes('tech') || lowerText.includes('ai') || lowerText.includes('digital') || lowerText.includes('virtual')) return 'Technology'
+  if (lowerText.includes('vintage') || lowerText.includes('retro') || lowerText.includes('classic')) return 'Vintage'
+  if (lowerText.includes('business') || lowerText.includes('market') || lowerText.includes('industry')) return 'Business'
+  if (lowerText.includes('global') || lowerText.includes('international') || lowerText.includes('world')) return 'Global Fashion'
+  
+  return 'Style'
+}
+
+// Calculate reading time from content
+const getReadTime = (content) => {
+  if (!content) return '3 min read'
+  const words = content.split(' ').length
+  const minutes = Math.max(1, Math.ceil(words / 200))
+  return `${minutes} min read`
+}
+
+// Extract relevant tags from title and description
+const getTags = (title, description) => {
+  const terms = [
+    'fashion', 'style', 'trends', 'luxury', 'streetwear', 'sustainable', 
+    'designer', 'runway', 'vintage', 'tech', 'business', 'global',
+    'haute couture', 'fashion week', 'eco-friendly', 'innovation'
+  ]
+  const text = `${title} ${description}`.toLowerCase()
+  return terms.filter(term => text.includes(term)).slice(0, 4)
+}
+
+// Get image for article category
 const getImageForCategory = (category, index) => {
   const imageIndex = index % fashionImages.length
   return fashionImages[imageIndex]
 }
 
-// Expanded fashion news templates for 200+ unique articles
+// Enhanced generated content for fallback
 const generateFashionNews = () => {
   const sources = ['Vogue', 'Harper\'s Bazaar', 'Elle', 'Fashionista', 'WWD', 'Refinery29', 'Who What Wear', 'Glamour', 'Marie Claire', 'InStyle', 'Allure', 'Cosmopolitan', 'Teen Vogue', 'Nylon', 'Paper Magazine']
   const authors = ['Sarah Johnson', 'Emma Chen', 'Maria Rodriguez', 'Alex Thompson', 'Jessica Park', 'Rachel Green', 'Sophie Williams', 'Maya Patel', 'Lisa Anderson', 'Kate Miller', 'Olivia Brown', 'Zoe Davis', 'Ava Wilson', 'Mia Taylor', 'Isabella Garcia']
@@ -296,41 +418,62 @@ const getTags = (title, description) => {
 
 // Main API service
 export const rssApi = {
-  // Get all fashion articles with pagination
+  // Get all fashion articles with pagination - tries real API first
   async getAllArticles(page = 1, limit = ARTICLES_PER_PAGE) {
     try {
       console.log(`🚀 Fetching fashion articles (page ${page})...`)
       
-      // For Vercel deployment, use generated content directly
-      // NewsAPI will fail due to CORS restrictions in browser
-      console.log('📰 Using generated fashion news content for Vercel')
+      // Try to fetch real fashion news first
+      const realNewsResult = await fetchRealFashionNews('fashion OR style OR luxury OR designer', page, limit)
+      
+      if (realNewsResult && realNewsResult.articles.length > 0) {
+        console.log(`✅ Using real NewsAPI data: ${realNewsResult.articles.length} articles`)
+        
+        const paginatedResult = {
+          articles: realNewsResult.articles,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(realNewsResult.totalResults / limit),
+            totalArticles: realNewsResult.totalResults,
+            articlesPerPage: limit,
+            hasNextPage: page * limit < realNewsResult.totalResults,
+            hasPrevPage: page > 1
+          }
+        }
+        
+        return {
+          ...paginatedResult,
+          lastUpdated: new Date().toISOString(),
+          source: 'NewsAPI (Real Data)'
+        }
+      }
+      
+      // Fallback to generated content
+      console.log('📰 Using generated fashion news content as fallback')
       const allArticles = getArticles()
       
-      // Remove duplicates by ID
       const uniqueArticles = allArticles.filter((article, index, self) => 
         index === self.findIndex(a => a.id === article.id)
       )
       
-      // Sort by publication date (newest first)
       const sortedArticles = uniqueArticles.sort((a, b) => 
         new Date(b.publishedDate) - new Date(a.publishedDate)
       )
       
-      // Apply pagination
       const paginatedResult = paginateArticles(sortedArticles, page, limit)
       
-      console.log(`✅ Loaded ${paginatedResult.articles.length} articles (page ${page}/${paginatedResult.pagination.totalPages})`)
+      console.log(`✅ Loaded ${paginatedResult.articles.length} generated articles (page ${page}/${paginatedResult.pagination.totalPages})`)
       
       return {
         ...paginatedResult,
         lastUpdated: new Date().toISOString(),
-        source: 'Generated Content'
+        source: 'Generated Content (Fallback)'
       }
       
     } catch (error) {
       console.error('❌ Failed to fetch articles:', error.message)
       
-      // Always return generated content as fallback
+      // Always return generated content as final fallback
       const articles = getArticles()
       const uniqueArticles = articles.filter((article, index, self) => 
         index === self.findIndex(a => a.id === article.id)
@@ -340,19 +483,121 @@ export const rssApi = {
       return {
         ...paginatedResult,
         lastUpdated: new Date().toISOString(),
-        source: 'Generated Content (Fallback)'
+        source: 'Generated Content (Error Fallback)'
       }
     }
   },
 
-  // Get articles by category with pagination
+  // Search articles with real API integration
+  async searchArticles(query, page = 1, limit = ARTICLES_PER_PAGE) {
+    try {
+      console.log(`🔍 Searching for: "${query}" (page ${page})`)
+      
+      if (!query || query.trim().length < 2) {
+        throw new Error('Search query must be at least 2 characters long')
+      }
+      
+      // Try real NewsAPI search first
+      const realNewsResult = await fetchRealFashionNews(`${query} AND (fashion OR style OR luxury OR designer)`, page, limit)
+      
+      if (realNewsResult && realNewsResult.articles.length > 0) {
+        console.log(`✅ Real search results: ${realNewsResult.articles.length} articles found`)
+        
+        const paginatedResult = {
+          articles: realNewsResult.articles,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(realNewsResult.totalResults / limit),
+            totalArticles: realNewsResult.totalResults,
+            articlesPerPage: limit,
+            hasNextPage: page * limit < realNewsResult.totalResults,
+            hasPrevPage: page > 1
+          }
+        }
+        
+        return {
+          ...paginatedResult,
+          query,
+          lastUpdated: new Date().toISOString(),
+          source: 'NewsAPI Search Results'
+        }
+      }
+      
+      // Fallback to searching generated content
+      console.log('🔍 Searching generated content as fallback')
+      const allArticles = getArticles()
+      
+      const uniqueArticles = allArticles.filter((article, index, self) => 
+        index === self.findIndex(a => a.id === article.id)
+      )
+      
+      const searchResults = uniqueArticles.filter(article =>
+        article.title.toLowerCase().includes(query.toLowerCase()) ||
+        article.description.toLowerCase().includes(query.toLowerCase()) ||
+        article.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase())) ||
+        article.category.toLowerCase().includes(query.toLowerCase())
+      )
+      
+      const paginatedResult = paginateArticles(searchResults, page, limit)
+      
+      console.log(`🎯 Found ${paginatedResult.articles.length} results in generated content for "${query}"`)
+      
+      return {
+        ...paginatedResult,
+        query,
+        lastUpdated: new Date().toISOString(),
+        source: 'Generated Content Search'
+      }
+      
+    } catch (error) {
+      console.error(`❌ Search failed for "${query}":`, error.message)
+      throw new Error(`Search failed: ${error.message}`)
+    }
+  },
+
+  // Get articles by category with real API integration
   async getArticlesByCategory(category, page = 1, limit = ARTICLES_PER_PAGE) {
     try {
       console.log(`📂 Fetching articles for category: ${category} (page ${page})`)
       
+      // Try real NewsAPI with category-specific search
+      const categoryQuery = `${category.toLowerCase()} AND (fashion OR style OR luxury OR designer)`
+      const realNewsResult = await fetchRealFashionNews(categoryQuery, page, limit)
+      
+      if (realNewsResult && realNewsResult.articles.length > 0) {
+        console.log(`✅ Real category results: ${realNewsResult.articles.length} articles found`)
+        
+        // Filter articles that match the category
+        const categoryArticles = realNewsResult.articles.filter(article => 
+          article.category.toLowerCase() === category.toLowerCase()
+        )
+        
+        if (categoryArticles.length > 0) {
+          const paginatedResult = {
+            articles: categoryArticles,
+            pagination: {
+              currentPage: page,
+              totalPages: Math.ceil(categoryArticles.length / limit),
+              totalArticles: categoryArticles.length,
+              articlesPerPage: limit,
+              hasNextPage: page * limit < categoryArticles.length,
+              hasPrevPage: page > 1
+            }
+          }
+          
+          return {
+            ...paginatedResult,
+            category,
+            lastUpdated: new Date().toISOString(),
+            source: 'NewsAPI Category Results'
+          }
+        }
+      }
+      
+      // Fallback to generated content
+      console.log(`📂 Using generated content for category: ${category}`)
       const allArticles = getArticles()
       
-      // Remove duplicates by ID
       const uniqueArticles = allArticles.filter((article, index, self) => 
         index === self.findIndex(a => a.id === article.id)
       )
@@ -361,20 +606,19 @@ export const rssApi = {
         article.category.toLowerCase() === category.toLowerCase()
       )
       
-      // Sort by publication date
       const sortedArticles = filteredArticles.sort((a, b) => 
         new Date(b.publishedDate) - new Date(a.publishedDate)
       )
       
-      // Apply pagination
       const paginatedResult = paginateArticles(sortedArticles, page, limit)
       
-      console.log(`✅ Found ${paginatedResult.articles.length} articles for category: ${category} (page ${page}/${paginatedResult.pagination.totalPages})`)
+      console.log(`✅ Found ${paginatedResult.articles.length} generated articles for category: ${category}`)
       
       return {
         ...paginatedResult,
         category,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        source: 'Generated Content Category'
       }
       
     } catch (error) {
@@ -383,18 +627,33 @@ export const rssApi = {
     }
   },
 
-  // Get featured articles
+  // Get featured articles - tries real API first
   async getFeaturedArticles(limit = 6) {
     try {
       console.log(`⭐ Fetching ${limit} featured articles...`)
       
+      // Try real NewsAPI for featured content
+      const realNewsResult = await fetchRealFashionNews('luxury OR designer OR fashion week', 1, limit)
+      
+      if (realNewsResult && realNewsResult.articles.length > 0) {
+        console.log(`✅ Using real featured articles: ${realNewsResult.articles.length}`)
+        return {
+          articles: realNewsResult.articles.slice(0, limit),
+          total: realNewsResult.articles.length,
+          lastUpdated: new Date().toISOString(),
+          source: 'NewsAPI Featured'
+        }
+      }
+      
+      // Fallback to generated content
       const allArticles = getArticles()
       const featured = allArticles.slice(0, limit)
       
       return {
         articles: featured,
         total: featured.length,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        source: 'Generated Featured'
       }
       
     } catch (error) {
@@ -412,9 +671,36 @@ export const rssApi = {
         throw new Error('Search query must be at least 2 characters long')
       }
       
+      // Try real NewsAPI search first
+      const realNewsResult = await fetchRealFashionNews(`${query} AND (fashion OR style OR luxury OR designer)`, page, limit)
+      
+      if (realNewsResult && realNewsResult.articles.length > 0) {
+        console.log(`✅ Real search results: ${realNewsResult.articles.length} articles found`)
+        
+        const paginatedResult = {
+          articles: realNewsResult.articles,
+          pagination: {
+            currentPage: page,
+            totalPages: Math.ceil(realNewsResult.totalResults / limit),
+            totalArticles: realNewsResult.totalResults,
+            articlesPerPage: limit,
+            hasNextPage: page * limit < realNewsResult.totalResults,
+            hasPrevPage: page > 1
+          }
+        }
+        
+        return {
+          ...paginatedResult,
+          query,
+          lastUpdated: new Date().toISOString(),
+          source: 'NewsAPI Search Results'
+        }
+      }
+      
+      // Fallback to searching generated content
+      console.log('🔍 Searching generated content as fallback')
       const allArticles = getArticles()
       
-      // Remove duplicates by ID
       const uniqueArticles = allArticles.filter((article, index, self) => 
         index === self.findIndex(a => a.id === article.id)
       )
@@ -426,16 +712,15 @@ export const rssApi = {
         article.category.toLowerCase().includes(query.toLowerCase())
       )
       
-      // Apply pagination
       const paginatedResult = paginateArticles(searchResults, page, limit)
       
-      console.log(`🎯 Found ${paginatedResult.articles.length} results for "${query}" (page ${page}/${paginatedResult.pagination.totalPages})`)
+      console.log(`🎯 Found ${paginatedResult.articles.length} results in generated content for "${query}"`)
       
       return {
         ...paginatedResult,
         query,
         lastUpdated: new Date().toISOString(),
-        source: 'Search Results'
+        source: 'Generated Content Search'
       }
       
     } catch (error) {

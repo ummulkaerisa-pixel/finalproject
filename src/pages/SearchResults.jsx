@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
+import { rssApi } from '../services/rssApi'
 
 function SearchResults() {
   const [searchParams] = useSearchParams()
@@ -7,157 +8,86 @@ function SearchResults() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
-
-  // Mock search data
-  const searchData = {
-    outfits: [
-      {
-        id: 1,
-        title: 'Luxury Evening Gown',
-        category: 'Luxury',
-        type: 'outfit',
-        description: 'Elegant silk evening dress with intricate beadwork',
-        price: 1200,
-        brand: 'Elite Couture',
-        keywords: ['luxury', 'evening', 'formal', 'silk', 'elegant']
-      },
-      {
-        id: 2,
-        title: 'Luxury Cashmere Coat',
-        category: 'Luxury',
-        type: 'outfit',
-        description: 'Premium cashmere overcoat with tailored fit',
-        price: 890,
-        brand: 'Luxury Essentials',
-        keywords: ['luxury', 'cashmere', 'coat', 'winter', 'premium']
-      },
-      {
-        id: 3,
-        title: 'Designer Handbag Collection',
-        category: 'Luxury',
-        type: 'outfit',
-        description: 'Handcrafted leather bags from renowned designers',
-        price: 650,
-        brand: 'Artisan Luxury',
-        keywords: ['luxury', 'handbag', 'leather', 'designer', 'accessories']
-      },
-      {
-        id: 4,
-        title: 'Street Style Hoodie',
-        category: 'Streetwear',
-        type: 'outfit',
-        description: 'Oversized hoodie with bold graphic prints',
-        price: 89,
-        brand: 'Urban Culture',
-        keywords: ['streetwear', 'hoodie', 'casual', 'urban', 'graphic']
-      },
-      {
-        id: 5,
-        title: 'Minimalist White Shirt',
-        category: 'Minimalist',
-        type: 'outfit',
-        description: 'Clean-cut white shirt with perfect tailoring',
-        price: 120,
-        brand: 'Simple Elegance',
-        keywords: ['minimalist', 'white', 'shirt', 'clean', 'simple']
-      },
-      {
-        id: 6,
-        title: 'Casual Weekend Look',
-        category: 'Casual',
-        type: 'outfit',
-        description: 'Comfortable jeans and t-shirt combination',
-        price: 75,
-        brand: 'Everyday Style',
-        keywords: ['casual', 'weekend', 'jeans', 'comfortable', 'relaxed']
-      }
-    ],
-    trends: [
-      {
-        id: 7,
-        title: 'Sustainable Luxury Materials',
-        category: 'Luxury',
-        type: 'trend',
-        description: 'Eco-friendly materials in high-end fashion',
-        confidence: 94,
-        growth: '+15%',
-        keywords: ['luxury', 'sustainable', 'eco-friendly', 'materials', 'premium']
-      },
-      {
-        id: 8,
-        title: 'Oversized Blazer Revival',
-        category: 'Streetwear',
-        type: 'trend',
-        description: 'Bold structured blazers in street fashion',
-        confidence: 89,
-        growth: '+22%',
-        keywords: ['streetwear', 'blazer', 'oversized', 'structured', 'urban']
-      }
-    ]
-  }
+  const [error, setError] = useState(null)
+  const [pagination, setPagination] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
-    const performSearch = () => {
+    const performSearch = async () => {
       if (!query.trim()) {
         setResults([])
+        setLoading(false)
         return
       }
 
-      const allItems = [...searchData.outfits, ...searchData.trends]
-      const searchResults = allItems.filter(item => 
-        item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.description.toLowerCase().includes(query.toLowerCase()) ||
-        item.category.toLowerCase().includes(query.toLowerCase()) ||
-        item.keywords.some(keyword => keyword.toLowerCase().includes(query.toLowerCase()))
-      )
-
-      setResults(searchResults)
-    }
-
-    if (query.trim()) {
-      // Use a timeout to avoid direct setState in effect
-      const timeoutId = setTimeout(() => {
+      try {
         setLoading(true)
-        setTimeout(() => {
-          performSearch()
-          setLoading(false)
-        }, 800)
-      }, 0)
-      
-      return () => clearTimeout(timeoutId)
-    } else {
-      // Use timeout for consistency
-      const timeoutId = setTimeout(() => {
+        setError(null)
+        
+        console.log('🔍 Searching for:', query)
+        const response = await rssApi.searchArticles(query, currentPage)
+        
+        console.log('✅ Search results:', response.articles.length, 'articles found')
+        setResults(response.articles)
+        setPagination(response.pagination)
+        
+      } catch (err) {
+        console.error('❌ Search error:', err)
+        setError('Failed to search articles. Please try again.')
         setResults([])
+      } finally {
         setLoading(false)
-      }, 0)
-      return () => clearTimeout(timeoutId)
+      }
     }
-  }, [query, searchData.outfits, searchData.trends])
+
+    performSearch()
+  }, [query, currentPage])
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && pagination && newPage <= pagination.totalPages) {
+      setCurrentPage(newPage)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   const getCategoryColor = (category) => {
     const colors = {
+      'Fashion Week': 'from-purple-400 to-indigo-500',
       'Luxury': 'from-amber-400 to-orange-500',
-      'Streetwear': 'from-purple-400 to-indigo-500',
-      'Minimalist': 'from-gray-400 to-gray-600',
-      'Casual': 'from-emerald-400 to-teal-500'
+      'Streetwear': 'from-blue-400 to-indigo-500',
+      'Sustainability': 'from-emerald-400 to-teal-500',
+      'Technology': 'from-cyan-400 to-blue-500',
+      'Style': 'from-rose-400 to-pink-500',
+      'Global Fashion': 'from-violet-400 to-purple-500',
+      'Business': 'from-gray-400 to-gray-600',
+      'Vintage': 'from-yellow-400 to-amber-500'
     }
     return colors[category] || 'from-gray-400 to-gray-500'
   }
 
   const getCategoryIcon = (category) => {
     const icons = {
+      'Fashion Week': '🏃‍♀️',
       'Luxury': '💎',
       'Streetwear': '🏙️',
-      'Minimalist': '⚪',
-      'Casual': '👕'
+      'Sustainability': '🌱',
+      'Technology': '🤖',
+      'Style': '✨',
+      'Global Fashion': '🌍',
+      'Business': '💼',
+      'Vintage': '📻'
     }
     return icons[category] || '👗'
   }
 
-  const filteredResults = filter === 'all' 
-    ? results 
-    : results.filter(item => item.type === filter)
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  }
 
   return (
     <div className="min-h-screen py-12">
@@ -168,34 +98,9 @@ function SearchResults() {
             Search Results for "{query}"
           </h1>
           <p className="text-xl text-gray-600">
-            {loading ? 'Searching...' : `Found ${filteredResults.length} results`}
+            {loading ? 'Searching...' : error ? 'Search failed' : `Found ${results.length} results`}
           </p>
         </div>
-
-        {/* Filter Tabs */}
-        {results.length > 0 && (
-          <div className="flex justify-center mb-12">
-            <div className="flex gap-2 bg-white rounded-full p-2 shadow-lg">
-              {[
-                { key: 'all', label: 'All Results', count: results.length },
-                { key: 'outfit', label: 'Outfits', count: results.filter(r => r.type === 'outfit').length },
-                { key: 'trend', label: 'Trends', count: results.filter(r => r.type === 'trend').length }
-              ].map(tab => (
-                <button
-                  key={tab.key}
-                  onClick={() => setFilter(tab.key)}
-                  className={`px-6 py-3 rounded-full font-semibold transition-all duration-300 ${
-                    filter === tab.key
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  {tab.label} ({tab.count})
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Loading State */}
         {loading && (
@@ -205,23 +110,38 @@ function SearchResults() {
           </div>
         )}
 
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Search Error</h3>
+            <p className="text-gray-600 mb-8">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-rose-500 text-white px-6 py-3 rounded-full font-semibold hover:bg-rose-600 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
         {/* No Query */}
         {!loading && !query.trim() && (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">Start Your Search</h3>
-            <p className="text-gray-600 mb-8">Enter a search term to find outfits, trends, and style inspiration</p>
+            <p className="text-gray-600 mb-8">Enter a search term to find fashion articles and trends</p>
           </div>
         )}
 
         {/* No Results */}
-        {!loading && query.trim() && results.length === 0 && (
+        {!loading && !error && query.trim() && results.length === 0 && (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">😔</div>
             <h3 className="text-2xl font-bold text-gray-900 mb-4">No results found</h3>
-            <p className="text-gray-600 mb-8">Try searching for different terms like "luxury", "streetwear", or "casual"</p>
+            <p className="text-gray-600 mb-8">Try searching for different terms like "luxury", "streetwear", or "sustainable fashion"</p>
             <div className="flex flex-wrap justify-center gap-2">
-              {['luxury outfits', 'streetwear', 'minimalist', 'casual wear', 'sustainable fashion'].map(suggestion => (
+              {['luxury fashion', 'streetwear', 'sustainable fashion', 'fashion week', 'technology'].map(suggestion => (
                 <Link
                   key={suggestion}
                   to={`/search?q=${encodeURIComponent(suggestion)}`}
@@ -235,73 +155,132 @@ function SearchResults() {
         )}
 
         {/* Results Grid */}
-        {!loading && filteredResults.length > 0 && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredResults.map(item => (
-              <div key={item.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
-                {/* Item Image/Icon */}
-                <div className={`relative overflow-hidden bg-gradient-to-br ${getCategoryColor(item.category)} h-64 flex items-center justify-center`}>
-                  <div className="text-center text-white">
-                    <div className="text-6xl mb-2">{getCategoryIcon(item.category)}</div>
-                    <p className="text-white font-medium">{item.title}</p>
-                  </div>
-                  
-                  {/* Category Badge */}
-                  <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                    <span className="text-xs font-bold text-white">{item.category}</span>
-                  </div>
-
-                  {/* Type Badge */}
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
-                    <span className={`text-xs font-bold ${
-                      item.type === 'outfit' ? 'text-blue-700' : 'text-purple-700'
-                    }`}>
-                      {item.type}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Item Info */}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-rose-600 transition-colors">
-                    {item.title}
-                  </h3>
-                  <p className="text-gray-600 mb-4">{item.description}</p>
-
-                  {item.type === 'outfit' ? (
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm text-gray-500">{item.brand}</div>
-                        <div className="text-2xl font-bold text-gray-900">${item.price}</div>
-                      </div>
-                      <button className="bg-gradient-to-r from-rose-500 to-pink-600 text-white px-6 py-2 rounded-full font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105">
-                        Shop Now
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-gray-900">{item.confidence}%</div>
-                          <div className="text-xs text-gray-500">Confidence</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-lg font-bold text-green-600">{item.growth}</div>
-                          <div className="text-xs text-gray-500">Growth</div>
-                        </div>
-                      </div>
-                      <Link
-                        to={`/trends/${item.category.toLowerCase()}`}
-                        className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 py-2 rounded-full font-semibold hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+        {!loading && !error && results.length > 0 && (
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {results.map(article => (
+                <div key={article.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                  {/* Article Image */}
+                  <div className="h-48 overflow-hidden relative">
+                    {article.imageUrl && !article.imageUrl.startsWith('linear-gradient') ? (
+                      <img 
+                        src={article.imageUrl} 
+                        alt={article.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div 
+                        className={`w-full h-full flex items-center justify-center text-white bg-gradient-to-br ${getCategoryColor(article.category)}`}
                       >
-                        Explore
-                      </Link>
+                        <div className="text-center">
+                          <div className="text-4xl mb-2">{getCategoryIcon(article.category)}</div>
+                          <div className="text-sm font-semibold">{article.category}</div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Category Badge */}
+                    <div className="absolute top-4 left-4">
+                      <span className="bg-white/90 text-gray-800 px-3 py-1 rounded-full text-xs font-medium">
+                        {article.category}
+                      </span>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Article Content */}
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-rose-600 transition-colors line-clamp-2">
+                      {article.title}
+                    </h3>
+                    <p className="text-gray-600 mb-4 line-clamp-3">{article.description}</p>
+
+                    {/* Article Meta */}
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                      <span>By {article.author}</span>
+                      <span>{article.readTime}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">
+                        {formatDate(article.publishedDate)}
+                      </span>
+                      <span className="text-xs text-gray-500">{article.source}</span>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {article.tags.slice(0, 3).map(tag => (
+                        <span key={tag} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex justify-center items-center mt-16 space-x-2">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={!pagination.hasPrevPage}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    pagination.hasPrevPage
+                      ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Previous
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex space-x-1">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-2 rounded-lg font-medium transition-colors ${
+                          currentPage === pageNum
+                            ? 'bg-rose-500 text-white'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    pagination.hasNextPage
+                      ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  Next
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         {/* Popular Searches */}
@@ -314,9 +293,9 @@ function SearchResults() {
 
             <div className="flex flex-wrap justify-center gap-3">
               {[
-                'luxury outfits', 'streetwear fashion', 'minimalist style', 'casual wear',
-                'sustainable fashion', 'evening dresses', 'designer bags', 'winter coats',
-                'summer trends', 'vintage style', 'athleisure', 'formal wear'
+                'luxury fashion', 'streetwear', 'sustainable fashion', 'fashion week',
+                'technology fashion', 'vintage style', 'global fashion', 'business fashion',
+                'designer brands', 'fashion trends', 'style guide', 'fashion news'
               ].map(term => (
                 <Link
                   key={term}
